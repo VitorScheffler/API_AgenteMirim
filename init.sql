@@ -1,0 +1,6 @@
+CREATE TABLE files (
+  id UUID PRIMARY KEY,
+  filename TEXT,
+  path TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
