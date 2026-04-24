@@ -21,42 +21,37 @@ mission_repo = MissionRepository()
 medal_repo   = MedalRepository()
 
 
-# ── FileService ───────────────────────────────────────────────────────────────
-
 class FileService:
 
     async def upload(self, db: AsyncSession, upload: UploadFile) -> File:
-        # Valida extensão
         ext = (upload.filename or "").rsplit(".", 1)[-1].lower()
         if ext not in settings.ALLOWED_EXTENSIONS:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Tipo de arquivo não permitido. Use: {', '.join(settings.ALLOWED_EXTENSIONS)}",
+                detail=f"Tipo não permitido. Use: {', '.join(settings.ALLOWED_EXTENSIONS)}",
             )
 
-        # Lê o conteúdo e valida tamanho
         content = await upload.read()
-        if len(content) > settings.MAX_UPLOAD_BYTES:
+
+        # Só valida tamanho se MAX_UPLOAD_MB > 0
+        if settings.MAX_UPLOAD_MB > 0 and len(content) > settings.MAX_UPLOAD_BYTES:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                 detail=f"Arquivo maior que o limite de {settings.MAX_UPLOAD_MB}MB",
             )
 
-        # Garante que o diretório existe
         os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
         file_id  = uuid.uuid4()
         filename = f"{file_id}.{ext}"
         path     = os.path.join(settings.UPLOAD_DIR, filename)
 
-        # Salva no disco
         try:
             async with aiofiles.open(path, "wb") as f:
                 await f.write(content)
         except OSError as e:
             raise HTTPException(status_code=500, detail=f"Erro ao salvar arquivo: {e}")
 
-        # Salva no banco; se falhar, remove do disco (consistência)
         file = File(
             id=file_id,
             filename=upload.filename or filename,
@@ -97,23 +92,18 @@ class FileService:
         if not file:
             raise HTTPException(status_code=404, detail="Arquivo não encontrado")
 
-        # Remove do banco primeiro
         await file_repo.delete(db, fid)
 
-        # Remove do disco (ignora se não existir)
         if os.path.exists(file.path):
             os.remove(file.path)
 
         return {"detail": "Arquivo removido com sucesso"}
 
 
-# ── ContentService ────────────────────────────────────────────────────────────
-
 class ContentService:
 
     async def create(self, db: AsyncSession, data: dict) -> Content:
-        content = Content(**data)
-        return await content_repo.create(db, content)
+        return await content_repo.create(db, Content(**data))
 
     async def list_all(self, db: AsyncSession, category: Optional[str] = None) -> List[Content]:
         return await content_repo.list_all(db, category)
@@ -123,7 +113,6 @@ class ContentService:
             cid = uuid.UUID(content_id)
         except ValueError:
             raise HTTPException(status_code=400, detail="ID inválido")
-
         content = await content_repo.get_by_id(db, cid)
         if not content:
             raise HTTPException(status_code=404, detail="Conteúdo não encontrado")
@@ -138,20 +127,15 @@ class ContentService:
             cid = uuid.UUID(content_id)
         except ValueError:
             raise HTTPException(status_code=400, detail="ID inválido")
-
-        deleted = await content_repo.delete(db, cid)
-        if not deleted:
+        if not await content_repo.delete(db, cid):
             raise HTTPException(status_code=404, detail="Conteúdo não encontrado")
         return {"detail": "Conteúdo removido com sucesso"}
 
 
-# ── MissionService ────────────────────────────────────────────────────────────
-
 class MissionService:
 
     async def create(self, db: AsyncSession, data: dict) -> Mission:
-        mission = Mission(**data)
-        return await mission_repo.create(db, mission)
+        return await mission_repo.create(db, Mission(**data))
 
     async def list_all(self, db: AsyncSession) -> List[Mission]:
         return await mission_repo.list_all(db)
@@ -161,7 +145,6 @@ class MissionService:
             mid = uuid.UUID(mission_id)
         except ValueError:
             raise HTTPException(status_code=400, detail="ID inválido")
-
         mission = await mission_repo.get_by_id(db, mid)
         if not mission:
             raise HTTPException(status_code=404, detail="Missão não encontrada")
@@ -176,20 +159,15 @@ class MissionService:
             mid = uuid.UUID(mission_id)
         except ValueError:
             raise HTTPException(status_code=400, detail="ID inválido")
-
-        deleted = await mission_repo.delete(db, mid)
-        if not deleted:
+        if not await mission_repo.delete(db, mid):
             raise HTTPException(status_code=404, detail="Missão não encontrada")
         return {"detail": "Missão removida com sucesso"}
 
 
-# ── MedalService ──────────────────────────────────────────────────────────────
-
 class MedalService:
 
     async def create(self, db: AsyncSession, data: dict) -> Medal:
-        medal = Medal(**data)
-        return await medal_repo.create(db, medal)
+        return await medal_repo.create(db, Medal(**data))
 
     async def list_all(self, db: AsyncSession) -> List[Medal]:
         return await medal_repo.list_all(db)
@@ -199,7 +177,6 @@ class MedalService:
             mid = uuid.UUID(medal_id)
         except ValueError:
             raise HTTPException(status_code=400, detail="ID inválido")
-
         medal = await medal_repo.get_by_id(db, mid)
         if not medal:
             raise HTTPException(status_code=404, detail="Medalha não encontrada")
@@ -210,8 +187,6 @@ class MedalService:
             mid = uuid.UUID(medal_id)
         except ValueError:
             raise HTTPException(status_code=400, detail="ID inválido")
-
-        deleted = await medal_repo.delete(db, mid)
-        if not deleted:
+        if not await medal_repo.delete(db, mid):
             raise HTTPException(status_code=404, detail="Medalha não encontrada")
         return {"detail": "Medalha removida com sucesso"}
