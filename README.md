@@ -1,201 +1,132 @@
-# 🌊 Agente Mirim — API Backend
+# 🌊 Agente Mirim — API de Arquivos v2.0
 
-API REST para o aplicativo **Agente Mirim**, desenvolvida em Python com FastAPI.
-Responsável por armazenar arquivos de mídia (imagens, vídeos, PDFs) e fornecer
-dados de missões, conteúdos e medalhas para o app Android.
+API REST para o aplicativo **Agente Mirim** — educação sobre prevenção de desastres naturais.
+Responsável por armazenar e servir arquivos de mídia (imagens, vídeos, PDFs).
 
 ---
 
 ## 🧱 Stack
 
-| Camada       | Tecnologia          |
-|--------------|---------------------|
-| Backend      | Python 3.11         |
-| Framework    | FastAPI + Uvicorn   |
-| Banco        | PostgreSQL 15       |
-| Storage      | Filesystem local    |
-| Auth         | Bearer Token fixo   |
-| Deploy       | Cloudflare Tunnel   |
+| Camada    | Tecnologia              |
+|-----------|-------------------------|
+| Backend   | Python 3.11 + FastAPI   |
+| Banco     | PostgreSQL 15           |
+| Storage   | Filesystem local        |
+| Auth      | Bearer Token (seguro)   |
+| Deploy    | Docker + Cloudflare Tunnel |
 
 ---
 
-## 📁 Estrutura de pastas
+## 📁 Estrutura
 
 ```
-agentemirim-api/
-├── app/
-│   ├── main.py                  # Entry point da aplicação
-│   ├── config.py                # Configurações via .env
-│   ├── database.py              # Conexão async com PostgreSQL
-│   ├── models/
-│   │   ├── file_model.py        # Tabela: files
-│   │   ├── content_model.py     # Tabela: contents
-│   │   ├── mission_model.py     # Tabela: missions
-│   │   └── medal_model.py       # Tabela: medals
-│   ├── controllers/
-│   │   ├── files_controller.py
-│   │   ├── contents_controller.py
-│   │   ├── missions_controller.py
-│   │   └── medals_controller.py
-│   ├── services/
-│   │   ├── file_service.py
-│   │   ├── content_service.py
-│   │   ├── mission_service.py
-│   │   └── medal_service.py
-│   ├── repositories/
-│   │   ├── file_repository.py
-│   │   ├── content_repository.py
-│   │   ├── mission_repository.py
-│   │   └── medal_repository.py
-│   └── utils/
-│       └── security.py
-├── uploads/
-├── init.sql
-├── docker-compose.yml
-├── Dockerfile
-├── requirements.txt
-├── .env.example
-└── README.md
-```
-
----
-
-## 🗄️ Banco de dados
-
-```sql
--- Arquivos de mídia
-files (id, filename, path, content_type, size_bytes, created_at)
-
--- Conteúdos educativos
-contents (id, title, description, file_id, order_index, category, created_at)
-
--- Missões
-missions (id, title, description, difficulty, points, order_index, created_at)
-
--- Medalhas
-medals (id, name, description, image_url, condition, created_at)
+app/
+├── main.py                  # Entry point
+├── config.py                # Configurações (.env)
+├── database.py              # Conexão PostgreSQL async
+├── models/models.py         # Tabela: files
+├── repositories/repository.py
+├── services/service.py
+├── controllers/controller.py
+└── utils/security.py        # Autenticação Bearer (timing-safe)
 ```
 
 ---
 
 ## 📡 Endpoints
 
+| Método   | Rota              | Descrição                    | Auth |
+|----------|-------------------|------------------------------|------|
+| `GET`    | `/health`         | Health check                 | ❌   |
+| `POST`   | `/files/upload`   | Upload de arquivo            | ✅   |
+| `GET`    | `/files/`         | Lista todos os arquivos      | ✅   |
+| `GET`    | `/files/{id}`     | Download de arquivo por ID   | ✅   |
+| `DELETE` | `/files/{id}`     | Remove arquivo               | ✅   |
+
 ### 🔐 Autenticação
-Todas as rotas exigem o header:
 ```
 Authorization: Bearer <AUTH_TOKEN>
 ```
 
-### 📤 Arquivos
-| Método | Rota            | Descrição              |
-|--------|-----------------|------------------------|
-| POST   | /upload         | Faz upload de arquivo  |
-| GET    | /files          | Lista todos os arquivos|
-| GET    | /files/{id}     | Download do arquivo    |
-| DELETE | /files/{id}     | Remove arquivo         |
-
-### 📚 Conteúdos
-| Método | Rota               | Descrição                    |
-|--------|--------------------|------------------------------|
-| GET    | /contents          | Lista conteúdos (com filtro) |
-| GET    | /contents/{id}     | Detalhe de um conteúdo       |
-| POST   | /contents          | Cria novo conteúdo           |
-| PUT    | /contents/{id}     | Atualiza conteúdo            |
-| DELETE | /contents/{id}     | Remove conteúdo              |
-
-### 🎯 Missões
-| Método | Rota               | Descrição            |
-|--------|--------------------|----------------------|
-| GET    | /missions          | Lista missões        |
-| GET    | /missions/{id}     | Detalhe da missão    |
-| POST   | /missions          | Cria missão          |
-| PUT    | /missions/{id}     | Atualiza missão      |
-| DELETE | /missions/{id}     | Remove missão        |
-
-### 🏅 Medalhas
-| Método | Rota             | Descrição           |
-|--------|------------------|---------------------|
-| GET    | /medals          | Lista medalhas      |
-| GET    | /medals/{id}     | Detalhe da medalha  |
-| POST   | /medals          | Cria medalha        |
+### 📎 Tipos de arquivo aceitos
+`jpg` · `jpeg` · `png` · `gif` · `webp` · `mp4` · `pdf`
 
 ---
 
 ## ▶️ Como rodar
 
-### 🐳 Docker (recomendado)
 ```bash
 cp .env.example .env
-# edite o .env se necessário
-docker-compose up --build
+# edite AUTH_TOKEN e DB_PASSWORD no .env
+docker compose up --build -d
 ```
-API disponível em: `http://localhost:8000`
-Docs interativas: `http://localhost:8000/docs`
 
-### 💻 Local (sem Docker)
-```bash
-pip install -r requirements.txt
-cp .env.example .env
-# certifique-se que o PostgreSQL está rodando e a tabela criada (init.sql)
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
+API: `http://localhost:8000`
+Docs: `http://localhost:8000/docs`
 
 ---
 
-## 🧪 Exemplos de requisição (curl)
+## ⚙️ Variáveis de ambiente (.env)
+
+| Variável        | Descrição                          | Padrão         |
+|-----------------|------------------------------------|----------------|
+| `DB_HOST`       | Host do PostgreSQL                 | `db`           |
+| `DB_PORT`       | Porta do PostgreSQL                | `5432`         |
+| `DB_NAME`       | Nome do banco                      | `agentemirim_db` |
+| `DB_USER`       | Usuário do banco                   | `postgres`     |
+| `DB_PASSWORD`   | Senha do banco                     | —              |
+| `UPLOAD_DIR`    | Diretório de uploads               | `/data/uploads`|
+| `AUTH_TOKEN`    | Token de autenticação (mín. 16 chars) | —           |
+| `MAX_UPLOAD_MB` | Limite de upload em MB (0 = sem limite) | `0`       |
+
+---
+
+## 🧪 Exemplos curl
 
 ```bash
-TOKEN="meu-token-secreto"
-BASE="http://localhost:8000"
+BASE="https://api.digitalvs.com.br"
+TOKEN="seu-token-aqui"
 
-# Upload de arquivo
-curl -X POST "$BASE/upload" \
+# Upload
+curl -X POST "$BASE/files/upload" \
   -H "Authorization: Bearer $TOKEN" \
-  -F "file=@imagem_enchente.jpg"
+  -F "file=@imagem.jpg"
 
-# Listar arquivos
-curl "$BASE/files" -H "Authorization: Bearer $TOKEN"
+# Listar
+curl "$BASE/files/" \
+  -H "Authorization: Bearer $TOKEN"
 
-# Download de arquivo
-curl "$BASE/files/<uuid>" -H "Authorization: Bearer $TOKEN" -O
+# Download
+curl "$BASE/files/<uuid>" \
+  -H "Authorization: Bearer $TOKEN" -O
 
-# Criar conteúdo
-curl -X POST "$BASE/contents" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Enchentes","description":"O que fazer em enchentes","category":"enchentes","order_index":1}'
-
-# Listar missões
-curl "$BASE/missions" -H "Authorization: Bearer $TOKEN"
-
-# Listar medalhas
-curl "$BASE/medals" -H "Authorization: Bearer $TOKEN"
+# Remover
+curl -X DELETE "$BASE/files/<uuid>" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ---
 
-## 🌐 Cloudflare Tunnel
+## 🔐 Segurança implementada
 
-```bash
-cloudflared tunnel create agentemirim
-cloudflared tunnel route dns agentemirim api.agentemirim.com
-cloudflared tunnel run agentemirim
+- Comparação de token com `secrets.compare_digest` (proteção contra timing attack)
+- Validação de extensão de arquivo na inicialização
+- Validação de arquivo vazio
+- Rollback automático: se o banco falhar após salvar no disco, o arquivo é removido
+- API não sobe se `AUTH_TOKEN` não estiver configurado ou for menor que 16 chars
+- Handler global para erros 500 (não expõe stack trace)
+
+---
+
+## 🗄️ Banco de dados
+
+```sql
+CREATE TABLE files (
+    id           UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+    filename     TEXT    NOT NULL,
+    path         TEXT    NOT NULL,
+    content_type TEXT    NOT NULL DEFAULT 'application/octet-stream',
+    size_bytes   BIGINT  NOT NULL DEFAULT 0,
+    created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 ```
-
----
-
-## ⚠️ Regras do sistema
-
-- Upload máximo: **10 MB**
-- Tipos permitidos: `jpg, jpeg, png, gif, mp4, pdf`
-- Falha no banco → arquivo removido do disco automaticamente
-- Token fixo via `.env` (trocar antes de produção)
-
----
-
-## 🚀 Próximos passos (integração com o app)
-
-1. Configurar `AUTH_TOKEN` no Android (BuildConfig ou SharedPreferences)
-2. Usar `Retrofit` para consumir os endpoints
-3. Substituir dados mockados do Firestore pelos endpoints `/contents` e `/missions`
-4. Fazer upload de mídias via `POST /upload` antes de criar um conteúdo

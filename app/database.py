@@ -2,7 +2,13 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy.orm import declarative_base
 from app.config import settings
 
-engine = create_async_engine(settings.DB_URL, echo=False, pool_pre_ping=True)
+engine = create_async_engine(
+    settings.DB_URL,
+    echo=False,
+    pool_pre_ping=True,
+    pool_size=5,
+    max_overflow=10,
+)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
@@ -14,7 +20,7 @@ AsyncSessionLocal = async_sessionmaker(
 
 Base = declarative_base()
 
-# Dependência para injetar a sessão nos controllers
+
 async def get_db():
     async with AsyncSessionLocal() as session:
         try:
