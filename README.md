@@ -1,19 +1,18 @@
-# 🌊 Agente Mirim — API de Arquivos v2.0
+# 🌊 Agente Mirim — API de Arquivos
 
-API REST para o aplicativo **Agente Mirim** — educação sobre prevenção de desastres naturais.
-Responsável por armazenar e servir arquivos de mídia (imagens, vídeos, PDFs).
+API REST para o app **Agente Mirim** — armazena e serve arquivos de mídia (imagens, vídeos, PDFs).
 
 ---
 
 ## 🧱 Stack
 
-| Camada    | Tecnologia              |
-|-----------|-------------------------|
-| Backend   | Python 3.11 + FastAPI   |
-| Banco     | PostgreSQL 15           |
-| Storage   | Filesystem local        |
-| Auth      | Bearer Token (seguro)   |
-| Deploy    | Docker + Cloudflare Tunnel |
+| Camada  | Tecnologia            |
+|---------|-----------------------|
+| Backend | Python 3.11 + FastAPI |
+| Banco   | PostgreSQL 15         |
+| Storage | Filesystem local      |
+| Auth    | Bearer Token          |
+| Deploy  | Docker + Cloudflare   |
 
 ---
 
@@ -21,34 +20,32 @@ Responsável por armazenar e servir arquivos de mídia (imagens, vídeos, PDFs).
 
 ```
 app/
-├── main.py                  # Entry point
-├── config.py                # Configurações (.env)
-├── database.py              # Conexão PostgreSQL async
-├── models/models.py         # Tabela: files
-├── repositories/repository.py
-├── services/service.py
-├── controllers/controller.py
-└── utils/security.py        # Autenticação Bearer (timing-safe)
+├── __init__.py
+├── config.py      # Variáveis de ambiente
+├── database.py    # Conexão + model File
+├── controller.py  # Endpoints (upload, listar, download, deletar)
+├── security.py    # Autenticação Bearer Token
+└── main.py        # Inicialização FastAPI
 ```
 
 ---
 
 ## 📡 Endpoints
 
-| Método   | Rota              | Descrição                    | Auth |
-|----------|-------------------|------------------------------|------|
-| `GET`    | `/health`         | Health check                 | ❌   |
-| `POST`   | `/files/upload`   | Upload de arquivo            | ✅   |
-| `GET`    | `/files/`         | Lista todos os arquivos      | ✅   |
-| `GET`    | `/files/{id}`     | Download de arquivo por ID   | ✅   |
-| `DELETE` | `/files/{id}`     | Remove arquivo               | ✅   |
+| Método   | Rota              | Descrição              | Auth |
+|----------|-------------------|------------------------|------|
+| GET      | `/health`         | Health check           | ❌   |
+| POST     | `/files/upload`   | Upload de arquivo      | ✅   |
+| GET      | `/files/`         | Listar arquivos        | ✅   |
+| GET      | `/files/{id}`     | Download por ID        | ✅   |
+| DELETE   | `/files/{id}`     | Remover arquivo        | ✅   |
 
-### 🔐 Autenticação
+### Autenticação
 ```
 Authorization: Bearer <AUTH_TOKEN>
 ```
 
-### 📎 Tipos de arquivo aceitos
+### Tipos aceitos
 `jpg` · `jpeg` · `png` · `gif` · `webp` · `mp4` · `pdf`
 
 ---
@@ -56,35 +53,38 @@ Authorization: Bearer <AUTH_TOKEN>
 ## ▶️ Como rodar
 
 ```bash
+# 1. Copiar e editar o .env
 cp .env.example .env
-# edite AUTH_TOKEN e DB_PASSWORD no .env
-docker compose up --build -d
-```
 
-API: `http://localhost:8000`
-Docs: `http://localhost:8000/docs`
+# 2. Subir os containers
+docker compose up --build -d
+
+# 3. Acessar
+# API:  http://localhost:8000
+# Docs: http://localhost:8000/docs
+```
 
 ---
 
 ## ⚙️ Variáveis de ambiente (.env)
 
-| Variável        | Descrição                          | Padrão         |
-|-----------------|------------------------------------|----------------|
-| `DB_HOST`       | Host do PostgreSQL                 | `db`           |
-| `DB_PORT`       | Porta do PostgreSQL                | `5432`         |
-| `DB_NAME`       | Nome do banco                      | `agentemirim_db` |
-| `DB_USER`       | Usuário do banco                   | `postgres`     |
-| `DB_PASSWORD`   | Senha do banco                     | —              |
-| `UPLOAD_DIR`    | Diretório de uploads               | `/data/uploads`|
-| `AUTH_TOKEN`    | Token de autenticação (mín. 16 chars) | —           |
-| `MAX_UPLOAD_MB` | Limite de upload em MB (0 = sem limite) | `0`       |
+| Variável        | Descrição                             | Padrão           |
+|-----------------|---------------------------------------|------------------|
+| `DB_HOST`       | Host do PostgreSQL                    | `db`             |
+| `DB_PORT`       | Porta do PostgreSQL                   | `5432`           |
+| `DB_NAME`       | Nome do banco                         | `agentemirim_db` |
+| `DB_USER`       | Usuário do banco                      | `postgres`       |
+| `DB_PASSWORD`   | Senha do banco                        | —                |
+| `UPLOAD_DIR`    | Diretório de uploads                  | `/data/uploads`  |
+| `AUTH_TOKEN`    | Token de autenticação (mín. 16 chars) | —                |
+| `MAX_UPLOAD_MB` | Limite de upload em MB (0 = sem limite) | `0`            |
 
 ---
 
 ## 🧪 Exemplos curl
 
 ```bash
-BASE="https://api.digitalvs.com.br"
+BASE="https://sua-api.com"
 TOKEN="seu-token-aqui"
 
 # Upload
@@ -103,30 +103,4 @@ curl "$BASE/files/<uuid>" \
 # Remover
 curl -X DELETE "$BASE/files/<uuid>" \
   -H "Authorization: Bearer $TOKEN"
-```
-
----
-
-## 🔐 Segurança implementada
-
-- Comparação de token com `secrets.compare_digest` (proteção contra timing attack)
-- Validação de extensão de arquivo na inicialização
-- Validação de arquivo vazio
-- Rollback automático: se o banco falhar após salvar no disco, o arquivo é removido
-- API não sobe se `AUTH_TOKEN` não estiver configurado ou for menor que 16 chars
-- Handler global para erros 500 (não expõe stack trace)
-
----
-
-## 🗄️ Banco de dados
-
-```sql
-CREATE TABLE files (
-    id           UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
-    filename     TEXT    NOT NULL,
-    path         TEXT    NOT NULL,
-    content_type TEXT    NOT NULL DEFAULT 'application/octet-stream',
-    size_bytes   BIGINT  NOT NULL DEFAULT 0,
-    created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
 ```

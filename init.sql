@@ -1,8 +1,4 @@
--- ============================================================
--- Agente Mirim — Script de inicialização do banco de dados
--- Versão 2.0.0 — somente armazenamento de arquivos
--- ============================================================
-
+-- Agente Mirim — inicialização do banco
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE IF NOT EXISTS files (
